@@ -40,6 +40,8 @@
     .skip{position:absolute;top:calc(env(safe-area-inset-top) + 14px);right:14px;z-index:10;border:1px solid rgba(255,255,255,.55);border-radius:999px;padding:10px 16px;background:rgba(255,255,255,.22);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.45);box-shadow:0 4px 14px rgba(0,0,0,.18)}
     .loading{position:absolute;bottom:28px;left:0;right:0;text-align:center;color:#fff;text-shadow:0 2px 8px #000;font-size:14px;opacity:.85}
     .tap-btn{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);z-index:6;border:1px solid rgba(255,255,255,.72);border-radius:999px;padding:12px 22px;background:rgba(255,255,255,.18);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-shadow:0 1px 5px rgba(0,0,0,.55);box-shadow:0 8px 22px rgba(0,0,0,.20);animation:pulse 1.8s ease-in-out infinite}
+    .music-unlock{display:none;position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);z-index:12;border:1px solid rgba(255,255,255,.65);border-radius:999px;padding:11px 18px;background:rgba(255,255,255,.20);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;font-size:13px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;text-shadow:0 1px 5px rgba(0,0,0,.55);box-shadow:0 8px 22px rgba(0,0,0,.22)}
+    body.need-music #musicUnlock{display:block}
     .fade-out{animation:fadeOut .75s ease forwards}.fade-in{animation:fadeIn .75s ease forwards}
     @keyframes pulse{0%,100%{transform:translateX(-50%) scale(1);opacity:.88}50%{transform:translateX(-50%) scale(1.035);opacity:1}}
     @keyframes fadeOut{to{opacity:0;filter:blur(8px)}}@keyframes fadeIn{from{opacity:0;filter:blur(8px)}to{opacity:1;filter:blur(0)}}
@@ -71,6 +73,7 @@
         <button class="hotspot" id="confirmBtn" data-key="confirm" data-label="WhatsApp" aria-label="Confirmar presença"></button>
         <button class="hotspot" id="mapBtn" data-key="map" data-label="Localização" aria-label="Abrir localização"></button>
         <button class="hotspot" id="giftBtn" data-key="gift" data-label="Presentes" aria-label="Ver sugestões de presentes"></button>
+        <button class="music-unlock" id="musicUnlock" type="button">Ativar música</button>
       </div>
     </section>
 
@@ -104,7 +107,7 @@
 
   <script>
     const WHATSAPP = '5531985657116';
-    const MAPS = 'https://www.google.com/maps/place/Sabor+e+Cia+Ponte+Nova+-+Rua+Padre+Roque+dos+Santos,+19+-+Fortaleza,+Pte.+Nova+-+MG,+35430-532/data=!4m2!3m1!1s0xa497ce4e098eaf:0x288f13f2af89723a?utm_source=mstt_1&entry=gps&g_ep=CAESBzExLjIyLjIYACD___________8BKgBCAkJS';
+    const MAPS = 'https://www.google.com/maps/place/Fisioeterapias+-+Clinica+de+Fisioterapia+Infantil/@-7.2301799,-39.3782927,16.5z/data=!4m6!3m5!1s0x7a183590a46bd83:0x125a4f24286c0c9f!8m2!3d-7.229732!4d-39.3778381!16s%2Fg%2F11fm9xg93_?entry=ttu&g_ep=EgoyMDI2MDYyOS4wIKXMDSoASAFQAw%3D%3D';
     const MESSAGE = 'Olá! Confirmo minha presença no aniversário da Sophia.';
 
     const DEFAULT_HOTSPOTS = {
@@ -137,20 +140,49 @@
       if(id === 'mainScreen') next.classList.add('fade-in');
     }
 
-    function startMusic(){
-      music.volume = 0;
-      const playPromise = music.play(); if (playPromise && playPromise.catch) playPromise.catch(()=>{});
-      let v = 0; const fade = setInterval(()=>{ v = Math.min(0.30, v + 0.03); music.volume = v; if (v >= 0.30) clearInterval(fade); }, 120);
+    let musicStarted = false;
+    let musicFadeTimer = null;
+    function fadeMusicTo(target=0.30){
+      clearInterval(musicFadeTimer);
+      music.volume = Math.min(music.volume || 0.001, target);
+      musicFadeTimer = setInterval(()=>{
+        music.volume = Math.min(target, (music.volume || 0) + 0.025);
+        if (music.volume >= target) clearInterval(musicFadeTimer);
+      }, 120);
     }
+    async function startMusic(force=false){
+      try{
+        music.muted = false;
+        music.volume = Math.max(music.volume || 0, 0.001);
+        music.load();
+        await music.play();
+        musicStarted = true;
+        document.body.classList.remove('need-music');
+        fadeMusicTo(0.30);
+        return true;
+      }catch(e){
+        musicStarted = false;
+        if(force || $('mainScreen').classList.contains('active')) document.body.classList.add('need-music');
+        return false;
+      }
+    }
+    function ensureMusicButton(){ if(!musicStarted || music.paused) document.body.classList.add('need-music'); }
 
-    $('opening').addEventListener('click', async ()=>{ show('videoScreen'); startMusic(); video.volume = 1; try { await video.play(); } catch(e) { show('mainScreen'); } }, {once:true});
-    function goMain(){ if ($('mainScreen').classList.contains('active')) return; video.pause(); $('videoScreen').classList.add('fade-out'); setTimeout(()=>show('mainScreen'), 520); }
+    $('opening').addEventListener('pointerup', async ()=>{
+      show('videoScreen');
+      await startMusic(false); // desbloqueia o MP3 no mesmo toque do usuário, inclusive no iPhone
+      video.volume = 1;
+      try { await video.play(); } catch(e) { show('mainScreen'); ensureMusicButton(); }
+    }, {once:true});
+    function goMain(){ if ($('mainScreen').classList.contains('active')) return; video.pause(); $('videoScreen').classList.add('fade-out'); setTimeout(()=>{ show('mainScreen'); startMusic(true); }, 520); }
     video.addEventListener('ended', goMain); video.addEventListener('error', goMain); $('skipBtn').addEventListener('click', goMain);
 
     $('confirmBtn').addEventListener('click', (e)=>{ if(document.body.classList.contains('editor-on')) return; e.preventDefault(); e.stopPropagation(); window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(MESSAGE)}`, '_blank'); });
     $('mapBtn').addEventListener('click', (e)=>{ if(document.body.classList.contains('editor-on')) return; e.preventDefault(); e.stopPropagation(); window.open(MAPS, '_blank'); });
     $('giftBtn').addEventListener('click', (e)=>{ if(document.body.classList.contains('editor-on')) return; e.preventDefault(); e.stopPropagation(); show('giftScreen'); });
     $('backBtn').addEventListener('click', ()=> show('mainScreen'));
+    $('musicUnlock').addEventListener('click', ()=> startMusic(true));
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && musicStarted && music.paused) startMusic(false); });
 
     // EDITOR: abra com ?editor=1
     const params = new URLSearchParams(location.search);
