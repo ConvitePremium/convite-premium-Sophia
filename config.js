@@ -35,7 +35,7 @@ window.CONFIG = {
   // ----- LOCALIZAÇÃO (BOTÃO MAPA) ----------------------------------------
   // Link completo do Google Maps. Abra o local no Maps, clique em "Compartilar"
   // -> "Copiar link" e cole aqui (mantenha as aspas).
-  mapa: "google.com/maps/place/Sabor+e+Cia+Ponte+Nova+-+Rua+Padre+Roque+dos+Santos,+19+-+Fortaleza,+Pte.+Nova+-+MG,+35430-532/data=!4m2!3m1!1s0xa497ce4e098eaf:0x288f13f2af89723a?utm_source=mstt_1&entry=gps&g_ep=CAESBzExLjIyLjIYACD___________8BKgBCAkJS",
+  mapa: "https://maps.app.goo.gl/7bQPAhegnmjbTKVVA",
 
   // ----- QUAIS TELAS APARECEM --------------------------------------------
   // video:     true  -> toca o vídeo (assets/video.mp4) depois da abertura.
